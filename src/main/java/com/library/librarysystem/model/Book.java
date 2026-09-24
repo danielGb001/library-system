@@ -1,9 +1,15 @@
 package com.library.librarysystem.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.util.UUID;
 
 @Entity
@@ -15,6 +21,7 @@ public class Book {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
@@ -34,6 +41,7 @@ public class Book {
     @Column(name = "available_copies", nullable = false)
     private Integer availableCopies = 1;
 
+    @Builder
     public Book(Author author, String title, String isbn, Integer totalCopies, Integer availableCopies) {
         this.author = author;
         this.title = title;

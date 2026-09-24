@@ -1,5 +1,6 @@
 package com.library.librarysystem.controller;
 
+import jakarta.validation.Valid;
 import com.library.librarysystem.model.Book;
 import com.library.librarysystem.service.BookService;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,7 @@ public class BookController {
     }
 
     @PostMapping
-    public ResponseEntity<Book> createBook(@RequestBody BookRequest request) {
+    public ResponseEntity<Book> createBook(@Valid @RequestBody BookRequest request){
         Book created = bookService.createBook(
                 request.getAuthorId(),
                 request.getTitle(),
@@ -41,7 +42,7 @@ public class BookController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable UUID id, @RequestBody BookRequest request) {
+    public ResponseEntity<Book> updateBook(@PathVariable UUID id, @Valid @RequestBody BookRequest request){
         Book updated = bookService.updateBook(
                 id,
                 request.getTitle(),

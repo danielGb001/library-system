@@ -1,5 +1,7 @@
 package com.library.librarysystem.model;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,6 +17,7 @@ public class Author {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)   // forces UUID to map to CHAR(36), not BINARY(16)
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 

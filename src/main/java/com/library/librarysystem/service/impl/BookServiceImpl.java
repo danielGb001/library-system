@@ -31,7 +31,14 @@ public class BookServiceImpl implements BookService {
             throw new IllegalArgumentException("Book title cannot be empty");
         }
 
-        Book book = new Book(author, title, isbn, totalCopies, totalCopies);
+        Book book = Book.builder()
+                .author(author)
+                .title(title)
+                .isbn(isbn)
+                .totalCopies(totalCopies)
+                .availableCopies(totalCopies)
+                .build();
+
         return bookRepository.save(book);
     }
 
@@ -49,9 +56,26 @@ public class BookServiceImpl implements BookService {
     @Override
     public Book updateBook(UUID id, String title, String isbn, Integer totalCopies) {
         Book book = getBookById(id);
+
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Book title cannot be empty");
+        }
+
+        // How many copies are currently out on loan, based on the OLD numbers
+        int copiesOnLoan = book.getTotalCopies() - book.getAvailableCopies();
+
+        if (totalCopies < copiesOnLoan) {
+            throw new IllegalArgumentException(
+                    "Cannot reduce totalCopies to " + totalCopies +
+                            " — " + copiesOnLoan + " copies are currently on loan");
+        }
+
         book.setTitle(title);
         book.setIsbn(isbn);
         book.setTotalCopies(totalCopies);
+        // Recompute availableCopies so the two numbers stay consistent
+        book.setAvailableCopies(totalCopies - copiesOnLoan);
+
         return bookRepository.save(book);
     }
 
