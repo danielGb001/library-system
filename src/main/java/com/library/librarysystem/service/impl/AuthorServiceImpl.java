@@ -44,6 +44,14 @@ public class AuthorServiceImpl implements AuthorService {
     @Override
     public Author updateAuthor(UUID id, String name, String nationality) {
         Author existingAuthor = getAuthorById(id);
+
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Author name cannot be empty");
+        }
+        if (nationality == null || nationality.isBlank()) {
+            throw new IllegalArgumentException("Nationality cannot be empty");
+        }
+
         existingAuthor.setName(name);
         existingAuthor.setNationality(nationality);
         return authorRepository.save(existingAuthor);
