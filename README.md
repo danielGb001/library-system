@@ -23,7 +23,7 @@ Controller  →  Service  →  Repository  →  Entity
 ```
 
 - **Controllers** handle HTTP requests/responses only — no business logic lives here.
-- **Services** contain the actual rules (e.g. "a member can't have more than 5 active loans", "returning an already-returned loan is not allowed").
+- **Services** contain the actual rules (e.g. "a member can't have more than 3 active loans", "returning an already-returned loan is not allowed").
 - **Repositories** use Spring Data JPA — most queries are generated automatically from method names, with a couple of custom `@Query` methods for more complex lookups.
 - **A global exception handler** (`@RestControllerAdvice`) converts domain exceptions into consistent, correctly-coded JSON error responses (404, 400, 409) instead of raw stack traces.
 
@@ -41,7 +41,7 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
 ## Business Rules Enforced
 
 - A book can only be borrowed if it has available copies.
-- A member cannot exceed a maximum number of simultaneously active loans.
+- A member cannot exceed **3** simultaneously active loans.
 - A loan cannot be returned more than once.
 - Borrowing/returning correctly increments and decrements a book's available copy count, wrapped in a single database transaction (`@Transactional`) so partial updates can't occur.
 
@@ -78,6 +78,16 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    ```
 
 The API will be available at `http://localhost:8080`.
+
+### API Documentation (Swagger UI)
+
+Interactive API docs are available once the app is running, at:
+
+```
+http://localhost:8080/swagger-ui.html
+```
+
+This lets you browse every endpoint, see expected request/response shapes, and send test requests directly from the browser — no Postman required.
 
 ## API Endpoints
 
@@ -146,6 +156,24 @@ Errors return consistent JSON with an appropriate HTTP status:
 | `400` | Invalid request data (validation failure) |
 | `409` | Request conflicts with current resource state (e.g. double-returning a loan) |
 
+## Testing
+
+The service layer is covered by **31 unit tests** written with JUnit 5 and Mockito, exercising both the success paths and the business-rule edge cases (not just "happy path" coverage):
+
+| Test Class | Tests | Covers |
+|---|---|---|
+| `AuthorServiceImplTest` | 12 | CRUD operations, blank-field validation, not-found handling |
+| `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
+| `LoanServiceImplTest` | 8 | Borrowing (availability checks, max active loans), returning (double-return prevention), not-found handling |
+
+Each service is tested in isolation — repositories are mocked with Mockito (`@Mock` / `@InjectMocks`), so these tests verify business logic without touching a real database.
+
+Run the full suite with:
+
+```bash
+./mvnw test
+```
+
 ## What This Project Demonstrates
 
 - Layered Spring Boot architecture with clear separation of concerns
@@ -153,3 +181,5 @@ Errors return consistent JSON with an appropriate HTTP status:
 - Business logic enforcement at the service layer, independent of HTTP concerns
 - Centralized exception handling with meaningful HTTP status codes
 - Request validation using Bean Validation (`@Valid`, `@NotBlank`, `@Email`, etc.) with DTOs to separate API contracts from persistence models
+- Unit testing with JUnit 5 and Mockito, covering both success and failure paths
+- Self-documenting API via OpenAPI/Swagger UI
