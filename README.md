@@ -7,7 +7,7 @@ Members can borrow and return books, with the system automatically tracking avai
 ## Tech Stack
 
 - **Java 17**
-- **Spring Boot 3** — Web, Data JPA, Validation
+- **Spring Boot 4** — Web, Data JPA, Validation
 - **Hibernate** (JPA implementation)
 - **MySQL** — relational database
 - **Lombok** — reduces boilerplate (getters/setters/constructors)
@@ -158,7 +158,11 @@ Errors return consistent JSON with an appropriate HTTP status:
 
 ## Testing
 
-The service layer is covered by **31 unit tests** written with JUnit 5 and Mockito, exercising both the success paths and the business-rule edge cases (not just "happy path" coverage):
+The project has **77 automated tests** across two layers, written with JUnit 5 and Mockito.
+
+### Service layer — 31 unit tests
+
+Each service is tested in isolation: repositories are mocked with Mockito (`@Mock` / `@InjectMocks`), so these tests verify business logic without touching a database.
 
 | Test Class | Tests | Covers |
 |---|---|---|
@@ -166,13 +170,24 @@ The service layer is covered by **31 unit tests** written with JUnit 5 and Mocki
 | `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 8 | Borrowing (availability checks, max active loans), returning (double-return prevention), not-found handling |
 
-Each service is tested in isolation — repositories are mocked with Mockito (`@Mock` / `@InjectMocks`), so these tests verify business logic without touching a real database.
+### Controller layer — 45 web-layer tests
 
-Run the full suite with:
+These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
+
+| Test Class | Tests | Covers |
+|---|---|---|
+| `AuthorControllerTest` | 9 | CRUD endpoints, 404 and 400 error mapping |
+| `BookControllerTest` | 13 | CRUD endpoints, bean-validation failures (`fieldErrors` responses), 409 on reducing copies below those on loan |
+| `MemberControllerTest` | 9 | Create/get/list/delete, blank-name and blank/malformed-email validation |
+| `LoanControllerTest` | 14 | Borrow/return flows, 409 on no copies / max loans / double-return, missing or malformed query parameters |
+
+### Running the tests
 
 ```bash
 ./mvnw test
 ```
+
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties`, so MySQL must be running (with the `library_system` database created) for the full suite to pass. The 76 other tests need no database.
 
 ## What This Project Demonstrates
 
@@ -181,5 +196,9 @@ Run the full suite with:
 - Business logic enforcement at the service layer, independent of HTTP concerns
 - Centralized exception handling with meaningful HTTP status codes
 - Request validation using Bean Validation (`@Valid`, `@NotBlank`, `@Email`, etc.) with DTOs to separate API contracts from persistence models
-- Unit testing with JUnit 5 and Mockito, covering both success and failure paths
+- Two-layer testing with JUnit 5 and Mockito: service-layer unit tests plus `@WebMvcTest` controller tests covering success and failure paths
 - Self-documenting API via OpenAPI/Swagger UI
+
+## Troubleshooting Log
+
+Real problems hit while building this project, with root causes and fixes (including the Spring Boot 4 testing-API changes), are documented in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
