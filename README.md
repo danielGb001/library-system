@@ -65,11 +65,17 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    CREATE DATABASE library_system;
    ```
 
-3. Configure your database credentials in `src/main/resources/application.properties`:
+3. Add your local database credentials. The committed `application.properties` deliberately contains no password. Spring Boot automatically loads a `config/application.properties` file from the project root and lets it override the main one, and the `config/` folder is git-ignored so your secrets are never committed. Create it:
+   ```bash
+   mkdir -p config
+   ```
+   Then put this in `config/application.properties`:
    ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3306/library_system
    spring.datasource.username=YOUR_USERNAME
    spring.datasource.password=YOUR_PASSWORD
+   # First run only: the committed config uses ddl-auto=validate, which expects
+   # the tables to exist already. 'update' lets Hibernate create them on an empty database.
+   spring.jpa.hibernate.ddl-auto=update
    ```
 
 4. Run the application:
@@ -187,7 +193,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties`, so MySQL must be running (with the `library_system` database created) for the full suite to pass. The 76 other tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created) for the full suite to pass. The 76 other tests need no database.
 
 ## What This Project Demonstrates
 
