@@ -1,0 +1,57 @@
+name: CI
+
+# Run the full test suite on every push to main and on every pull request.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # A throwaway MySQL instance, started fresh for each run. It exists only
+    # for the duration of the job, so the password below is not a real secret.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_DATABASE: library_system
+          MYSQL_USER: libraryUser
+          MYSQL_PASSWORD: ci-test-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Make the Maven wrapper executable
+        run: chmod +x mvnw
+
+      # Spring Boot lets environment variables override application.properties,
+      # so nothing in the repo needs to change for CI:
+      #  - the datasource settings point at the MySQL container above
+      #  - ddl-auto is 'update' here because the CI database starts empty
+      #    (the committed config uses 'validate', which needs existing tables)
+      - name: Run tests
+        run: ./mvnw -B test
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/library_system?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: libraryUser
+          SPRING_DATASOURCE_PASSWORD: ci-test-password
+          SPRING_JPA_HIBERNATE_DDL_AUTO: update
