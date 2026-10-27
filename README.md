@@ -1,5 +1,7 @@
 # Library Management System
 
+[![CI](https://github.com/danielGb001/library-system/actions/workflows/ci.yml/badge.svg)](https://github.com/danielGb001/library-system/actions/workflows/ci.yml)
+
 A RESTful library management API built with **Spring Boot**, demonstrating a layered architecture (Controller → Service → Repository → Entity), relational data modeling, business-rule enforcement, and centralized error handling.
 
 Members can borrow and return books, with the system automatically tracking availability, enforcing borrowing limits, and preventing invalid operations (e.g. borrowing a book with zero copies left, or returning a loan twice).
