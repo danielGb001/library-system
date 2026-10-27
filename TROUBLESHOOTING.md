@@ -126,8 +126,51 @@ A record of real problems hit while building this project, how each one was diag
 
 ---
 
+## 13. `git push` rejected: "Password authentication is not supported"
+
+**Symptom:** `remote: Invalid username or token. Password authentication is not supported for Git operations. fatal: Authentication failed`, even though the account password was correct.
+
+**Root cause:** Two things. GitHub no longer accepts the account password for Git over HTTPS (since 2021); Git needs a personal access token in the password field. And the token cached in the macOS Keychain from an earlier session had expired, because classic tokens default to a 30-day lifetime.
+
+**Fix:** Generated a new personal access token (classic) under the correct account, cleared the stale credential from the Keychain (`security delete-internet-password -s github.com`, repeated until none remained), and pushed again, entering the token as the password. The token needed the **`workflow`** scope as well as `repo`, because GitHub rejects pushes that add or change files under `.github/workflows/` without it.
+
+**Lesson:** An authentication error after weeks of working pushes usually means an expired credential, not a broken repo. Put token expiry dates in a calendar.
+
+---
+
+## 14. Database password committed to a public repository
+
+**Symptom:** Preparing to add CI, a check of the history (`git log -p -- src/main/resources/application.properties | grep -i password`) showed the real database password in a committed version of the file. The repository is public.
+
+**Root cause:** The `application.properties` file was tracked by git, and the original README setup steps told readers to put their credentials directly in it, so the real password was committed along with everything else.
+
+**Fix:**
+1. **Rotated the password** in MySQL (`ALTER USER 'libraryUser'@'localhost' IDENTIFIED BY '...'`). Once the old value no longer works, its presence in history is harmless.
+2. **Moved the secret out of the committed file.** Spring Boot automatically loads `config/application.properties` from the project root and lets it override the main file, so the password now lives there, and `config/` was added to `.gitignore`. The committed file keeps a comment pointing to the README instead of a value.
+3. **Updated the README** setup steps to describe the git-ignored override.
+4. Re-ran the full suite to confirm the override works (77 tests still passing, with Hibernate connecting using the password from `config/`).
+
+**Why history wasn't rewritten:** Removing a secret from a public repo's history doesn't un-leak it, since clones, forks and caches may already hold it, and a force-push is disruptive. Rotating the credential is what actually closes the exposure.
+
+**Lesson:** Treat any secret that has been committed (or pasted into a chat or ticket) as compromised, and rotate it rather than trying to hide it. Keep secrets out of tracked files from the start.
+
+---
+
+## 15. Running the tests in CI: `ddl-auto=validate` against an empty database
+
+**Symptom (anticipated and avoided):** Adding GitHub Actions meant `LibrarySystemApplicationTests` would start the full application on a clean runner, connecting to a brand-new MySQL instance with no tables.
+
+**Root cause:** The committed config uses `spring.jpa.hibernate.ddl-auto=validate`, which checks the existing schema against the entities and fails at startup if the tables are missing. The same problem affects anyone cloning the repo onto a fresh database.
+
+**Fix:** The CI workflow starts a throwaway MySQL 8.4 service container and overrides settings through environment variables, which Spring Boot gives priority over `application.properties`: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, and `SPRING_JPA_HIBERNATE_DDL_AUTO=update` so Hibernate creates the tables on the empty database. No application code or committed config had to change. The README's setup steps now tell local users to set `ddl-auto=update` for their first run too. Both CI runs passed (about a minute each).
+
+**Lesson:** Spring Boot's property override order (environment variables over config files) makes it possible to run the same build against different environments without touching the code.
+
+---
+
 ## Takeaways
 
 - Several of the hardest bugs here (#8, #9, #10) came from the project being on **Spring Boot 4.1.0**, a major version with real breaking changes to testing APIs that predate most available tutorials and training material. When something that "should just work" doesn't, checking the specific version in `pom.xml` against official migration notes is often faster than assuming the code is wrong.
 - Two bugs (#2, #11) were really IDE/tooling behavior, not code bugs — auto-import picking the wrong candidate, and the browser's file-naming convention for repeat downloads.
 - One "bug" (#7) wasn't a bug at all — worth always checking the underlying data before assuming the code is at fault.
+- Secrets need their own handling from day one (#13, #14): git-ignored local config, environment variables in CI, and rotation as the first response to any exposure. Token expiry is the other credential trap worth planning for.
