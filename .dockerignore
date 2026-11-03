@@ -1,0 +1,15 @@
+# Local secrets: never bake these into an image
+config/
+
+# Build output and version control
+target/
+.git/
+
+# IDE and OS files
+.idea/
+*.iml
+.DS_Store
+
+# Docs and CI aren't needed to build the app
+*.md
+.github/
