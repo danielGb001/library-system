@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/danielGb001/library-system/actions/workflows/ci.yml/badge.svg)](https://github.com/danielGb001/library-system/actions/workflows/ci.yml)
 
+**Live demo:** [Swagger UI on Render](https://library-system-blpx.onrender.com/swagger-ui.html) (free-tier hosting: the first request after a quiet period can take a minute or two, and the free demo database is occasionally powered off by its host, so the demo may be briefly unavailable).
+
 A RESTful library management API built with **Spring Boot**, demonstrating a layered architecture (Controller → Service → Repository → Entity), relational data modeling, business-rule enforcement, and centralized error handling.
 
 Members can borrow and return books, with the system automatically tracking availability, enforcing borrowing limits, and preventing invalid operations (e.g. borrowing a book with zero copies left, or returning a loan twice).

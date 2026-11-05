@@ -168,9 +168,61 @@ A record of real problems hit while building this project, how each one was diag
 
 ---
 
+## 16. Swagger UI loads but shows "Failed to load API definition" (500 on `/v3/api-docs`)
+
+**Symptom:** On the deployed app, `/swagger-ui.html` opened and showed the Swagger header, but the page body read "Failed to load API definition. Fetch error, response status is 500 /v3/api-docs".
+
+**Root cause:** The `pom.xml` still pinned `springdoc-openapi-starter-webmvc-ui` at 2.6.0, a release built for Spring Boot 3.3. springdoc's compatibility table pairs Spring Boot 4.1.x with springdoc 3.1.x-3.2.x. The Swagger UI itself is just static files, so it loads even when the library cannot generate the API description behind it, which made the app look half-working.
+
+**Fix:** Upgraded to springdoc 3.2.0, ran the full suite (77 passing), started the app locally and checked `curl http://localhost:8080/v3/api-docs` returned `200` before pushing.
+
+**Lesson:** After a major framework upgrade, re-check every library that hooks into the framework (same family of problem as #9 and #10). When a UI page loads but is empty, test the data endpoint behind it directly.
+
+---
+
+## 17. Deployed app stuck on "Application loading": the free database had powered off
+
+**Symptom:** The Render service showed the "Application loading" wake-up screen indefinitely, and two deploys of the same commit failed.
+
+**Root cause:** The bottom-most `Caused by` in the logs read `java.net.UnknownHostException: <database host>: Name or service not known`. Aiven's free MySQL plan powers a service off after a period of inactivity, which removes its network address entirely. Spring Boot cannot start without its database, so every restart crashed. The console showed the service as "Powered off".
+
+**Fix:** Powered the service back on from the Aiven console (Actions > Power on service), waited for "Running", then triggered a manual redeploy on Render. Aiven restores the latest backup and replays the binlog when a MySQL service powers on, so the tables survived.
+
+**Lesson:** In a long stack trace, read the deepest `Caused by` first; it names the actual failure, and everything above it is wrapper noise. `nslookup <host>` is a quick way to tell "the database is gone" from "the credentials are wrong". Free tiers trade availability for price, so check dependencies before sharing a demo link. The paid alternative (about $5 a month on Aiven's Developer plan) prevents the power-offs.
+
+---
+
+## 18. Translating local settings into cloud configuration
+
+**Symptom (avoided by checking first):** Several settings that worked locally would have failed on Render + Aiven.
+
+**What had to change, and why:**
+- **JDBC URL:** Aiven's dashboard shows a `mysql://user:password@host...?ssl-mode=REQUIRED` URI. The Java driver needs a hand-built `jdbc:mysql://HOST:PORT/defaultdb?sslMode=REQUIRED` (camelCase `sslMode`), with the user and password supplied separately.
+- **Secrets:** the database password is entered only in Render's environment-variable settings, never in the repository. Spring Boot's relaxed binding maps `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` onto the matching `spring.datasource.*` properties.
+- **Schema:** the committed config uses `ddl-auto=validate`, which fails on an empty database, so the deployed service sets `SPRING_JPA_HIBERNATE_DDL_AUTO=update` to let Hibernate create the tables on first start (the same technique as in #15).
+- **Port:** Render's default `PORT` is 10000 while the Dockerfile declares 8080, so `PORT=8080` is set explicitly. The Dockerfile's start command reads `${PORT:-8080}`.
+- **Memory:** the free instance has 512 MB, so the Dockerfile caps the JVM heap at 70% of container memory and uses the serial garbage collector and C1-only JIT.
+- **Connections:** `SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=3` keeps the connection pool small for free-tier limits.
+
+**Lesson:** Environment variables are the bridge between one codebase and many environments; nothing in the application code had to change.
+
+---
+
+## 19. Checking the summary panel before creating cloud resources
+
+**Symptom (caught before clicking Create):** Twice, the cloud console's pre-filled form was not what was wanted: the first showed the paid "Developer" plan, which spends trial credits and powers the service off once they run out, and the second was a PostgreSQL service (the page address ended in `serviceType=pg`) when the app needs MySQL.
+
+**Fix:** Went back, switched to the Free tier and the MySQL service type, and confirmed the summary panel read "MySQL", "Free" and $0 before creating the service.
+
+**Lesson:** Defaults on cloud sign-up pages push toward paid plans. Read the summary panel and the page address, not just the form, before clicking the button that creates (and may bill for) something.
+
+---
+
 ## Takeaways
 
 - Several of the hardest bugs here (#8, #9, #10) came from the project being on **Spring Boot 4.1.0**, a major version with real breaking changes to testing APIs that predate most available tutorials and training material. When something that "should just work" doesn't, checking the specific version in `pom.xml` against official migration notes is often faster than assuming the code is wrong.
 - Two bugs (#2, #11) were really IDE/tooling behavior, not code bugs — auto-import picking the wrong candidate, and the browser's file-naming convention for repeat downloads.
 - One "bug" (#7) wasn't a bug at all — worth always checking the underlying data before assuming the code is at fault.
 - Secrets need their own handling from day one (#13, #14): git-ignored local config, environment variables in CI, and rotation as the first response to any exposure. Token expiry is the other credential trap worth planning for.
+- In a stack trace, the deepest `Caused by` is usually the real problem (#17). When something half-loads, test the endpoint behind it directly (#16).
+- Free hosting is a trade-off: it works, but it sleeps and powers off. Know the failure mode before sharing a link (#17), and read every summary panel before creating a cloud resource (#19).
