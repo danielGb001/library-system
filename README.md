@@ -163,12 +163,12 @@ Errors return consistent JSON with an appropriate HTTP status:
 | Status | Meaning |
 |---|---|
 | `404` | Resource not found (e.g. invalid `bookId`) |
-| `400` | Invalid request data (validation failure) |
-| `409` | Request conflicts with current resource state (e.g. double-returning a loan) |
+| `400` | Invalid request data (validation failure, malformed JSON body, invalid or missing parameter) |
+| `409` | Request conflicts with current state or existing data (e.g. double-returning a loan, a duplicate email or ISBN, deleting a record that is still referenced) |
 
 ## Testing
 
-The project has **77 automated tests** across two layers, written with JUnit 5 and Mockito.
+The project has **84 automated tests** across two layers, written with JUnit 5 and Mockito.
 
 ### Service layer — 31 unit tests
 
@@ -180,7 +180,7 @@ Each service is tested in isolation: repositories are mocked with Mockito (`@Moc
 | `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 8 | Borrowing (availability checks, max active loans), returning (double-return prevention), not-found handling |
 
-### Controller layer — 45 web-layer tests
+### Controller layer — 52 web-layer tests
 
 These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
 
@@ -190,6 +190,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 | `BookControllerTest` | 13 | CRUD endpoints, bean-validation failures (`fieldErrors` responses), 409 on reducing copies below those on loan |
 | `MemberControllerTest` | 9 | Create/get/list/delete, blank-name and blank/malformed-email validation |
 | `LoanControllerTest` | 14 | Borrow/return flows, 409 on no copies / max loans / double-return, missing or malformed query parameters |
+| `GlobalExceptionHandlerTest` | 7 | Error responses shared by every controller: 409 on duplicate email/ISBN and on deleting a record that is still referenced, 400 on malformed JSON, an invalid UUID or a missing parameter, and the validation-error shape |
 
 ### Running the tests
 

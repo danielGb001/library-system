@@ -218,6 +218,18 @@ A record of real problems hit while building this project, how each one was diag
 
 ---
 
+## 20. Unhandled database constraint violations surfaced as raw 500s
+
+**Symptom:** Probing the running app with deliberately bad input showed that registering a member with an existing email, creating a book with an existing ISBN, and deleting an author who still had books all returned `500 Internal Server Error` with Spring's default body. Malformed JSON returned a 400 with a different shape from the app's other errors (no `message` field).
+
+**Root cause:** The services rely on the database's unique and foreign-key constraints, but nothing translated the resulting `DataIntegrityViolationException` into a client error, so it fell through to the framework's default 500. Request-level problems (unreadable body, bad parameter value, missing parameter) were handled by Spring's defaults rather than the app's standard error format.
+
+**Fix:** Extended `GlobalExceptionHandler` with handlers for database conflicts (409, with the wording chosen by inspecting the database's message but never exposing it), malformed JSON, parameter type mismatches and missing parameters (400), and gave validation errors the same `message` field as every other error. Added 7 tests in `GlobalExceptionHandlerTest`, then re-ran the original probes against the real MySQL database to confirm the actual error messages were recognised (all returned the expected 409/400). A catch-all `Exception` handler was deliberately not added: it would turn harmless framework 404s into 500s and can interfere with springdoc.
+
+**Lesson:** Find failure paths by probing a running app with bad input; don't assume them. Unit tests with simulated exceptions prove the handler logic, but only a real database proves that its actual error messages match what the code looks for.
+
+---
+
 ## Takeaways
 
 - Several of the hardest bugs here (#8, #9, #10) came from the project being on **Spring Boot 4.1.0**, a major version with real breaking changes to testing APIs that predate most available tutorials and training material. When something that "should just work" doesn't, checking the specific version in `pom.xml` against official migration notes is often faster than assuming the code is wrong.
