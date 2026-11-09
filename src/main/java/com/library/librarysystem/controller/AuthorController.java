@@ -2,6 +2,7 @@ package com.library.librarysystem.controller;
 
 import com.library.librarysystem.model.Author;
 import com.library.librarysystem.service.AuthorService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,27 +21,30 @@ public class AuthorController {
     }
 
     @PostMapping
-    public ResponseEntity<Author> createAuthor(@RequestBody Author authorRequest) {
-        Author created = authorService.createAuthor(authorRequest.getName(), authorRequest.getNationality());
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<AuthorResponse> createAuthor(@Valid @RequestBody AuthorRequest request) {
+        Author created = authorService.createAuthor(request.getName(), request.getNationality());
+        return ResponseEntity.status(HttpStatus.CREATED).body(AuthorResponse.from(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Author> getAuthorById(@PathVariable UUID id) {
+    public ResponseEntity<AuthorResponse> getAuthorById(@PathVariable UUID id) {
         Author author = authorService.getAuthorById(id);
-        return ResponseEntity.ok(author);
+        return ResponseEntity.ok(AuthorResponse.from(author));
     }
 
     @GetMapping
-    public ResponseEntity<List<Author>> getAllAuthors() {
-        List<Author> authors = authorService.getAllAuthors();
+    public ResponseEntity<List<AuthorResponse>> getAllAuthors() {
+        List<AuthorResponse> authors = authorService.getAllAuthors().stream()
+                .map(AuthorResponse::from)
+                .toList();
         return ResponseEntity.ok(authors);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Author> updateAuthor(@PathVariable UUID id, @RequestBody Author authorRequest) {
-        Author updated = authorService.updateAuthor(id, authorRequest.getName(), authorRequest.getNationality());
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<AuthorResponse> updateAuthor(@PathVariable UUID id,
+                                                       @Valid @RequestBody AuthorRequest request) {
+        Author updated = authorService.updateAuthor(id, request.getName(), request.getNationality());
+        return ResponseEntity.ok(AuthorResponse.from(updated));
     }
 
     @DeleteMapping("/{id}")

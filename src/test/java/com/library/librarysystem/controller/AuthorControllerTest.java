@@ -71,19 +71,21 @@ class AuthorControllerTest {
 
     @Test
     void createAuthor_blankName_returnsBadRequest() throws Exception {
-        Author requestBody = new Author("", "Nigerian");
+        AuthorRequest requestBody = new AuthorRequest();
+        requestBody.setName("");
+        requestBody.setNationality("Nigerian");
 
-        // The controller has no @Valid here, so this 400 comes from the
-        // service throwing IllegalArgumentException, not bean validation -
-        // meaning no "fieldErrors" map, just a plain message.
-        when(authorService.createAuthor("", "Nigerian"))
-                .thenThrow(new IllegalArgumentException("Author name must not be blank"));
-
+        // @Valid on the controller rejects the blank name before the service is called,
+        // so the response uses the standard validation format with a "fieldErrors" map.
         mockMvc.perform(post("/api/authors")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Author name must not be blank"));
+                .andExpect(jsonPath("$.message").value("Request validation failed"))
+                .andExpect(jsonPath("$.fieldErrors.name").value("name must not be empty"));
+
+        // The service must never be reached when validation fails.
+        org.mockito.Mockito.verifyNoInteractions(authorService);
     }
 
     // ---------- GET /api/authors/{id} ----------
