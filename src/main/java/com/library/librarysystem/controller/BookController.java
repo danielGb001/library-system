@@ -21,35 +21,39 @@ public class BookController {
     }
 
     @PostMapping
-    public ResponseEntity<Book> createBook(@Valid @RequestBody BookRequest request){
+    public ResponseEntity<BookResponse> createBook(@Valid @RequestBody BookRequest request) {
         Book created = bookService.createBook(
                 request.getAuthorId(),
                 request.getTitle(),
                 request.getIsbn(),
                 request.getTotalCopies()
         );
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(BookResponse.from(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Book> getBookById(@PathVariable UUID id) {
-        return ResponseEntity.ok(bookService.getBookById(id));
+    public ResponseEntity<BookResponse> getBookById(@PathVariable UUID id) {
+        return ResponseEntity.ok(BookResponse.from(bookService.getBookById(id)));
     }
 
     @GetMapping
-    public ResponseEntity<List<Book>> getAllBooks() {
-        return ResponseEntity.ok(bookService.getAllBooks());
+    public ResponseEntity<List<BookResponse>> getAllBooks() {
+        List<BookResponse> books = bookService.getAllBooks().stream()
+                .map(BookResponse::from)
+                .toList();
+        return ResponseEntity.ok(books);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable UUID id, @Valid @RequestBody BookRequest request){
+    public ResponseEntity<BookResponse> updateBook(@PathVariable UUID id,
+                                                   @Valid @RequestBody BookRequest request) {
         Book updated = bookService.updateBook(
                 id,
                 request.getTitle(),
                 request.getIsbn(),
                 request.getTotalCopies()
         );
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(BookResponse.from(updated));
     }
 
     @DeleteMapping("/{id}")
