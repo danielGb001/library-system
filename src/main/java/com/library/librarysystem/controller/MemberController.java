@@ -21,19 +21,22 @@ public class MemberController {
     }
 
     @PostMapping
-    public ResponseEntity<Member> createMember(@Valid @RequestBody MemberRequest request) {
+    public ResponseEntity<MemberResponse> createMember(@Valid @RequestBody MemberRequest request) {
         Member created = memberService.registerMember(request.getFullName(), request.getEmail());
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(MemberResponse.from(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Member> getMemberById(@PathVariable UUID id) {
-        return ResponseEntity.ok(memberService.getMemberById(id));
+    public ResponseEntity<MemberResponse> getMemberById(@PathVariable UUID id) {
+        return ResponseEntity.ok(MemberResponse.from(memberService.getMemberById(id)));
     }
 
     @GetMapping
-    public ResponseEntity<List<Member>> getAllMembers() {
-        return ResponseEntity.ok(memberService.getAllMembers());
+    public ResponseEntity<List<MemberResponse>> getAllMembers() {
+        List<MemberResponse> members = memberService.getAllMembers().stream()
+                .map(MemberResponse::from)
+                .toList();
+        return ResponseEntity.ok(members);
     }
 
     @DeleteMapping("/{id}")
