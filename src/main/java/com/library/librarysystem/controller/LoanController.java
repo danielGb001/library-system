@@ -21,31 +21,37 @@ public class LoanController {
 
     // POST /api/loans/borrow?bookId=...&memberId=...
     @PostMapping("/borrow")
-    public ResponseEntity<Loan> borrowBook(@RequestParam UUID bookId,
-                                           @RequestParam UUID memberId) {
+    public ResponseEntity<LoanResponse> borrowBook(@RequestParam UUID bookId,
+                                                   @RequestParam UUID memberId) {
         Loan loan = loanService.borrowBook(bookId, memberId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(loan);
+        return ResponseEntity.status(HttpStatus.CREATED).body(LoanResponse.from(loan));
     }
 
     // POST /api/loans/{loanId}/return
     @PostMapping("/{loanId}/return")
-    public ResponseEntity<Loan> returnBook(@PathVariable UUID loanId) {
-        return ResponseEntity.ok(loanService.returnBook(loanId));
+    public ResponseEntity<LoanResponse> returnBook(@PathVariable UUID loanId) {
+        return ResponseEntity.ok(LoanResponse.from(loanService.returnBook(loanId)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Loan> getLoanById(@PathVariable UUID id) {
-        return ResponseEntity.ok(loanService.getLoanById(id));
+    public ResponseEntity<LoanResponse> getLoanById(@PathVariable UUID id) {
+        return ResponseEntity.ok(LoanResponse.from(loanService.getLoanById(id)));
     }
 
     @GetMapping
-    public ResponseEntity<List<Loan>> getAllLoans() {
-        return ResponseEntity.ok(loanService.getAllLoans());
+    public ResponseEntity<List<LoanResponse>> getAllLoans() {
+        List<LoanResponse> loans = loanService.getAllLoans().stream()
+                .map(LoanResponse::from)
+                .toList();
+        return ResponseEntity.ok(loans);
     }
 
     // GET /api/loans/member/{memberId}
     @GetMapping("/member/{memberId}")
-    public ResponseEntity<List<Loan>> getActiveLoansForMember(@PathVariable UUID memberId) {
-        return ResponseEntity.ok(loanService.getActiveLoansForMember(memberId));
+    public ResponseEntity<List<LoanResponse>> getActiveLoansForMember(@PathVariable UUID memberId) {
+        List<LoanResponse> loans = loanService.getActiveLoansForMember(memberId).stream()
+                .map(LoanResponse::from)
+                .toList();
+        return ResponseEntity.ok(loans);
     }
 }
