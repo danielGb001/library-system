@@ -26,7 +26,7 @@ Controller  →  Service  →  Repository  →  Entity
   (REST API)   (business logic)   (data access)   (DB mapping)
 ```
 
-- **Controllers** handle HTTP requests/responses only — no business logic lives here.
+- **Controllers** handle HTTP requests/responses only — no business logic lives here. They accept request DTOs (validated with `@Valid`) and return response DTOs, so the API contract stays separate from the database entities.
 - **Services** contain the actual rules (e.g. "a member can't have more than 3 active loans", "returning an already-returned loan is not allowed").
 - **Repositories** use Spring Data JPA — most queries are generated automatically from method names, with a couple of custom `@Query` methods for more complex lookups.
 - **A global exception handler** (`@RestControllerAdvice`) converts domain exceptions into consistent, correctly-coded JSON error responses (404, 400, 409) instead of raw stack traces.
@@ -206,7 +206,8 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 - JPA entity relationships (`@OneToMany`, `@ManyToOne`) and UUID primary key handling
 - Business logic enforcement at the service layer, independent of HTTP concerns
 - Centralized exception handling with meaningful HTTP status codes
-- Request validation using Bean Validation (`@Valid`, `@NotBlank`, `@Email`, etc.) with DTOs to separate API contracts from persistence models
+- Request validation using Bean Validation (`@Valid`, `@NotBlank`, `@Email`, `@Size`, etc.), with clear field-level error messages
+- Request and response DTOs (e.g. `AuthorRequest`, `BookResponse`, `LoanResponse`) that separate the API contract from the persistence entities, so entities are never returned directly
 - Two-layer testing with JUnit 5 and Mockito: service-layer unit tests plus `@WebMvcTest` controller tests covering success and failure paths
 - Self-documenting API via OpenAPI/Swagger UI
 
