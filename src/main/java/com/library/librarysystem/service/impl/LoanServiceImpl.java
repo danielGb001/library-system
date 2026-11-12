@@ -8,6 +8,7 @@ import com.library.librarysystem.repository.LoanRepository;
 import com.library.librarysystem.repository.MemberRepository;
 import com.library.librarysystem.service.LoanService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,6 +34,7 @@ public class LoanServiceImpl implements LoanService {
     }
 
     @Override
+    @Transactional
     public Loan borrowBook(UUID bookId, UUID memberId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NoSuchElementException("Book not found with id: " + bookId));
@@ -58,6 +60,7 @@ public class LoanServiceImpl implements LoanService {
     }
 
     @Override
+    @Transactional
     public Loan returnBook(UUID loanId) {
         Loan loan = getLoanById(loanId);
 
