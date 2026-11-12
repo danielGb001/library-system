@@ -46,12 +46,12 @@ jobs:
       # Spring Boot lets environment variables override application.properties,
       # so nothing in the repo needs to change for CI:
       #  - the datasource settings point at the MySQL container above
-      #  - ddl-auto is 'update' here because the CI database starts empty
-      #    (the committed config uses 'validate', which needs existing tables)
+      #  - the CI database starts empty, so Flyway builds the tables from
+      #    db/migration/V1__init.sql and Hibernate ('validate') then checks
+      #    that they match the entities
       - name: Run tests
         run: ./mvnw -B test
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/library_system?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
           SPRING_DATASOURCE_USERNAME: libraryUser
           SPRING_DATASOURCE_PASSWORD: ci-test-password
-          SPRING_JPA_HIBERNATE_DDL_AUTO: update
