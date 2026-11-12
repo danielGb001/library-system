@@ -14,6 +14,7 @@ Members can borrow and return books, with the system automatically tracking avai
 - **Spring Boot 4** — Web, Data JPA, Validation
 - **Hibernate** (JPA implementation)
 - **MySQL** — relational database
+- **Flyway** — versioned database migrations (the schema lives in `src/main/resources/db/migration`)
 - **Lombok** — reduces boilerplate (getters/setters/constructors)
 - **Maven** — build and dependency management
 
@@ -77,9 +78,6 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    ```properties
    spring.datasource.username=YOUR_USERNAME
    spring.datasource.password=YOUR_PASSWORD
-   # First run only: the committed config uses ddl-auto=validate, which expects
-   # the tables to exist already. 'update' lets Hibernate create them on an empty database.
-   spring.jpa.hibernate.ddl-auto=update
    ```
 
 4. Run the application:
@@ -88,6 +86,8 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    ```
 
 The API will be available at `http://localhost:8080`.
+
+On the first run, Flyway creates all tables automatically by applying `src/main/resources/db/migration/V1__init.sql` to the empty database, and Hibernate (`ddl-auto=validate`) then checks that they match the entities. Any later schema change goes into a new numbered migration file (`V2__...`), and a migration that has already been applied is never edited.
 
 ### API Documentation (Swagger UI)
 
@@ -208,6 +208,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 - Centralized exception handling with meaningful HTTP status codes
 - Request validation using Bean Validation (`@Valid`, `@NotBlank`, `@Email`, `@Size`, etc.), with clear field-level error messages
 - Request and response DTOs (e.g. `AuthorRequest`, `BookResponse`, `LoanResponse`) that separate the API contract from the persistence entities, so entities are never returned directly
+- Versioned database schema with Flyway migrations, including adopting an existing production database through a baseline
 - Two-layer testing with JUnit 5 and Mockito: service-layer unit tests plus `@WebMvcTest` controller tests covering success and failure paths
 - Self-documenting API via OpenAPI/Swagger UI
 
