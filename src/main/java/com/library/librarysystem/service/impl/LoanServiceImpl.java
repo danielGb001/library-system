@@ -36,12 +36,16 @@ public class LoanServiceImpl implements LoanService {
     @Override
     @Transactional
     public Loan borrowBook(UUID bookId, UUID memberId) {
+        // 1. Lock the member's row FIRST. Simultaneous borrows by the same member now take
+        //    turns, so the loan-limit check below cannot be bypassed. (The lock must come
+        //    before any other read, so the reads after it see the other request's committed loan.)
+        memberRepository.findByIdForUpdate(memberId)
+                .orElseThrow(() -> new NoSuchElementException("Member not found with id: " + memberId));
+
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NoSuchElementException("Book not found with id: " + bookId));
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException("Member not found with id: " + memberId));
-
+        // Friendly early checks (the atomic update below is what truly guards the last copy).
         if (book.getAvailableCopies() <= 0) {
             throw new IllegalStateException("No available copies of \"" + book.getTitle() + "\" to borrow");
         }
@@ -52,17 +56,30 @@ public class LoanServiceImpl implements LoanService {
                     "Member has reached the maximum of " + MAX_ACTIVE_LOANS_PER_MEMBER + " active loans");
         }
 
-        book.setAvailableCopies(book.getAvailableCopies() - 1);
-        bookRepository.save(book);
+        // 2. Atomically take one copy: the "is one left?" check and the "-1" happen in a single
+        //    SQL statement, so two simultaneous requests can never both take the last copy.
+        if (bookRepository.decrementAvailableCopies(bookId) == 0) {
+            throw new IllegalStateException("No available copies of \"" + book.getTitle() + "\" to borrow");
+        }
 
-        Loan loan = new Loan(book, member, LocalDate.now().plusDays(LOAN_PERIOD_DAYS));
+        // 3. The update cleared Hibernate's in-memory copies, so reload the book (it now shows
+        //    the reduced count) and the member before creating the loan.
+        Book updatedBook = bookRepository.findById(bookId)
+                .orElseThrow(() -> new NoSuchElementException("Book not found with id: " + bookId));
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new NoSuchElementException("Member not found with id: " + memberId));
+
+        Loan loan = new Loan(updatedBook, member, LocalDate.now().plusDays(LOAN_PERIOD_DAYS));
         return loanRepository.save(loan);
     }
 
     @Override
     @Transactional
     public Loan returnBook(UUID loanId) {
-        Loan loan = getLoanById(loanId);
+        // Lock the loan's row: a second simultaneous return waits here, then finds
+        // returnDate already set and gets the normal "already returned" error.
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
+                .orElseThrow(() -> new NoSuchElementException("Loan not found with id: " + loanId));
 
         if (loan.getReturnDate() != null) {
             throw new IllegalStateException("This loan has already been returned");
@@ -70,11 +87,11 @@ public class LoanServiceImpl implements LoanService {
 
         loan.setReturnDate(LocalDate.now());
 
-        Book book = loan.getBook();
-        book.setAvailableCopies(book.getAvailableCopies() + 1);
-        bookRepository.save(book);
+        // Atomic +1 (it saves the return date first, then adds the copy back, capped at totalCopies).
+        bookRepository.incrementAvailableCopies(loan.getBook().getId());
 
-        return loanRepository.save(loan);
+        // Reload so the response shows the updated book.
+        return getLoanById(loanId);
     }
 
     @Override
