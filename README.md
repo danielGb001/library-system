@@ -213,13 +213,22 @@ Borrowing and returning are safe under simultaneous requests.
 - A copy is taken with a single atomic update (`UPDATE book SET available_copies = available_copies - 1 WHERE id = ? AND available_copies > 0`), so two requests can never both take the last copy.
 - Returning locks the loan's row, so a loan can only be returned once, and the atomic increment can never push the count above `total_copies`.
 
-**How it was verified.** The unit tests cover the logic with mocked repositories, including a test for losing the race for the last copy. The real locking behaviour was checked manually against a local MySQL with scripts that fire simultaneous HTTP requests (these scripts are not part of the automated suite):
+**How it was verified.** The unit tests cover the logic with mocked repositories, including a test for losing the race for the last copy. The real locking behaviour was checked manually against a local MySQL with scripts that fire simultaneous HTTP requests (the scripts are in the [`scripts/`](scripts) folder and are not part of the automated suite):
 
 | Scenario | Result |
 |---|---|
 | 5 members race for the only copy, 20 rounds | Exactly one borrower every round (old code: 0 of 20 rounds correct) |
 | The same loan is returned 5 times at once, 10 rounds | Exactly one success, and the copy count goes up by exactly one |
-| One member borrows 5 different books at once, 10 rounds | Exactly 3 loans every round |
+| One member borrows 5 different books at once, 10 rounds | Exactly 3 loans every round               |
+
+To run them yourself, start the app against a throwaway local database (the scripts create test books and members), then in another terminal run:
+
+```bash
+bash scripts/race-last-copy.sh
+bash scripts/race-return-and-limit.sh
+```
+
+They always talk to `http://localhost:8080`, so they cannot hit the live demo. A fully correct run ends with every round reported as OK.
 
 ## What This Project Demonstrates
 
