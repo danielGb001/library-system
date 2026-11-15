@@ -49,6 +49,7 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
 - A member cannot exceed **3** simultaneously active loans.
 - A loan cannot be returned more than once.
 - Borrowing/returning correctly increments and decrements a book's available copy count, wrapped in a single database transaction (`@Transactional`) so partial updates can't occur.
+- These rules hold under **simultaneous requests**: borrowing locks the member's row and takes a copy with one atomic SQL update, and returning locks the loan's row, so two people can never borrow the last copy, a member can't exceed the loan limit, and a loan can't be returned twice at the same moment. See [Concurrency](#concurrency).
 
 ## Getting Started
 
@@ -168,9 +169,9 @@ Errors return consistent JSON with an appropriate HTTP status:
 
 ## Testing
 
-The project has **84 automated tests** across two layers, written with JUnit 5 and Mockito.
+The project has **85 automated tests**: 84 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
 
-### Service layer — 31 unit tests
+### Service layer — 32 unit tests
 
 Each service is tested in isolation: repositories are mocked with Mockito (`@Mock` / `@InjectMocks`), so these tests verify business logic without touching a database.
 
@@ -178,7 +179,7 @@ Each service is tested in isolation: repositories are mocked with Mockito (`@Moc
 |---|---|---|
 | `AuthorServiceImplTest` | 12 | CRUD operations, blank-field validation, not-found handling |
 | `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
-| `LoanServiceImplTest` | 8 | Borrowing (availability checks, max active loans), returning (double-return prevention), not-found handling |
+| `LoanServiceImplTest` | 9 | Borrowing (availability checks, max active loans, losing the race for the last copy), returning (double-return prevention), not-found handling |
 
 ### Controller layer — 52 web-layer tests
 
@@ -198,13 +199,34 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created) for the full suite to pass. The 76 other tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created) for the full suite to pass. The other 84 tests need no database.
+
+## Concurrency
+
+Borrowing and returning are safe under simultaneous requests.
+
+**The problem.** The original `borrowBook` read a book, checked `availableCopies > 0`, then saved a decremented count. Two requests arriving together could both pass the check. In a test where five members raced for a book with a single copy, the original code handed the copy to all five members in 15 of 20 rounds and to two or three members in the other 5 (0 of 20 rounds correct). The book's counter still ended at 0, so nothing looked wrong.
+
+**The fix.**
+- `@Transactional` on `borrowBook` and `returnBook`, so a failure part-way through undoes everything.
+- Borrowing locks the member's row (`SELECT ... FOR UPDATE`), so one member's simultaneous borrows take turns and the 3-loan limit can't be bypassed.
+- A copy is taken with a single atomic update (`UPDATE book SET available_copies = available_copies - 1 WHERE id = ? AND available_copies > 0`), so two requests can never both take the last copy.
+- Returning locks the loan's row, so a loan can only be returned once, and the atomic increment can never push the count above `total_copies`.
+
+**How it was verified.** The unit tests cover the logic with mocked repositories, including a test for losing the race for the last copy. The real locking behaviour was checked manually against a local MySQL with scripts that fire simultaneous HTTP requests (these scripts are not part of the automated suite):
+
+| Scenario | Result |
+|---|---|
+| 5 members race for the only copy, 20 rounds | Exactly one borrower every round (old code: 0 of 20 rounds correct) |
+| The same loan is returned 5 times at once, 10 rounds | Exactly one success, and the copy count goes up by exactly one |
+| One member borrows 5 different books at once, 10 rounds | Exactly 3 loans every round |
 
 ## What This Project Demonstrates
 
 - Layered Spring Boot architecture with clear separation of concerns
 - JPA entity relationships (`@OneToMany`, `@ManyToOne`) and UUID primary key handling
 - Business logic enforcement at the service layer, independent of HTTP concerns
+- Concurrency control with transactions, row locks and atomic updates, verified with simultaneous-request tests against a real database
 - Centralized exception handling with meaningful HTTP status codes
 - Request validation using Bean Validation (`@Valid`, `@NotBlank`, `@Email`, `@Size`, etc.), with clear field-level error messages
 - Request and response DTOs (e.g. `AuthorRequest`, `BookResponse`, `LoanResponse`) that separate the API contract from the persistence entities, so entities are never returned directly
