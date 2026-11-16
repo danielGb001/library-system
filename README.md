@@ -100,6 +100,8 @@ http://localhost:8080/swagger-ui.html
 
 This lets you browse every endpoint, see expected request/response shapes, and send test requests directly from the browser — no Postman required.
 
+Opening the root URL (`http://localhost:8080/`) redirects to the Swagger page. A health check is available at `http://localhost:8080/actuator/health`; it reports `UP` while the application and its database connection are healthy. It is the only Actuator endpoint exposed.
+
 ## API Endpoints
 
 ### Authors
@@ -169,7 +171,7 @@ Errors return consistent JSON with an appropriate HTTP status:
 
 ## Testing
 
-The project has **85 automated tests**: 84 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
+The project has **86 automated tests**: 85 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
 
 ### Service layer — 32 unit tests
 
@@ -181,7 +183,7 @@ Each service is tested in isolation: repositories are mocked with Mockito (`@Moc
 | `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 9 | Borrowing (availability checks, max active loans, losing the race for the last copy), returning (double-return prevention), not-found handling |
 
-### Controller layer — 52 web-layer tests
+### Controller layer — 53 web-layer tests
 
 These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
 
@@ -191,6 +193,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 | `BookControllerTest` | 13 | CRUD endpoints, bean-validation failures (`fieldErrors` responses), 409 on reducing copies below those on loan |
 | `MemberControllerTest` | 9 | Create/get/list/delete, blank-name and blank/malformed-email validation |
 | `LoanControllerTest` | 14 | Borrow/return flows, 409 on no copies / max loans / double-return, missing or malformed query parameters |
+| `RootControllerTest` | 1 | The root URL (`/`) redirects to the Swagger UI |
 | `GlobalExceptionHandlerTest` | 7 | Error responses shared by every controller: 409 on duplicate email/ISBN and on deleting a record that is still referenced, 400 on malformed JSON, an invalid UUID or a missing parameter, and the validation-error shape |
 
 ### Running the tests
@@ -199,7 +202,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created) for the full suite to pass. The other 84 tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created) for the full suite to pass. The other 85 tests need no database.
 
 ## Concurrency
 
