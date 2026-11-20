@@ -1,13 +1,14 @@
 #!/bin/bash
 # Five members race for the single copy of a book, 20 times.
 BASE="http://localhost:8080/api"
+AUTH="${ADMIN_USERNAME:?Set ADMIN_USERNAME and ADMIN_PASSWORD first}:${ADMIN_PASSWORD:?Set ADMIN_USERNAME and ADMIN_PASSWORD first}"
 ROUNDS=20
 RACERS=5
 RUN=$(date +%s)
 TMP=$(mktemp -d)
 
 first_id() { grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4; }
-post_json() { curl -s -X POST "$BASE/$1" -H 'Content-Type: application/json' -d "$2"; }
+post_json() { curl -s -u "$AUTH" -X POST "$BASE/$1" -H 'Content-Type: application/json' -d "$2"; }
 
 AUTHOR_ID=$(post_json authors '{"name":"Race Author","nationality":"Test"}' | first_id)
 if [ -z "$AUTHOR_ID" ]; then
@@ -27,7 +28,7 @@ for i in $(seq 1 $ROUNDS); do
 
   rm -f "$TMP"/code-*
   for j in $(seq 1 $RACERS); do
-    ( curl -s -o /dev/null -w '%{http_code}' -X POST \
+    ( curl -s -o /dev/null -w '%{http_code}' -u "$AUTH" -X POST \
         "$BASE/loans/borrow?bookId=$BOOK_ID&memberId=${members[$((j-1))]}" > "$TMP/code-$j" ) &
   done
   wait

@@ -55,3 +55,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/library_system?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
           SPRING_DATASOURCE_USERNAME: libraryUser
           SPRING_DATASOURCE_PASSWORD: ci-test-password
+          ADMIN_USERNAME: ci-admin
+          ADMIN_PASSWORD: ci-admin-password
+          USER_USERNAME: ci-user
+          USER_PASSWORD: ci-user-password

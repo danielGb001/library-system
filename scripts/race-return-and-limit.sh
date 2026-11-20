@@ -2,12 +2,13 @@
 # Test A: 5 simultaneous returns of the SAME loan (10 rounds).
 # Test B: one member fires 5 simultaneous borrows of 5 different books (10 rounds).
 BASE="http://localhost:8080/api"
+AUTH="${ADMIN_USERNAME:?Set ADMIN_USERNAME and ADMIN_PASSWORD first}:${ADMIN_PASSWORD:?Set ADMIN_USERNAME and ADMIN_PASSWORD first}"
 ROUNDS=10
 RUN=$(date +%s)
 TMP=$(mktemp -d)
 
 first_id() { grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4; }
-post_json() { curl -s -X POST "$BASE/$1" -H 'Content-Type: application/json' -d "$2"; }
+post_json() { curl -s -u "$AUTH" -X POST "$BASE/$1" -H 'Content-Type: application/json' -d "$2"; }
 new_book() { post_json books "{\"authorId\":\"$AUTHOR_ID\",\"title\":\"$1\",\"isbn\":\"$2\",\"totalCopies\":1}" | first_id; }
 new_member() { post_json members "{\"fullName\":\"$1\",\"email\":\"$2\"}" | first_id; }
 
@@ -19,10 +20,10 @@ okA=0
 for i in $(seq 1 $ROUNDS); do
   BOOK=$(new_book "Return Race $i" "RET-$RUN-$i")
   MEM=$(new_member "Returner $i" "returner-$RUN-$i@race.test")
-  LOAN=$(curl -s -X POST "$BASE/loans/borrow?bookId=$BOOK&memberId=$MEM" | first_id)
+  LOAN=$(curl -s -u "$AUTH" -X POST "$BASE/loans/borrow?bookId=$BOOK&memberId=$MEM" | first_id)
   rm -f "$TMP"/r-*
   for j in 1 2 3 4 5; do
-    ( curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/loans/$LOAN/return" > "$TMP/r-$j" ) &
+    ( curl -s -o /dev/null -w '%{http_code}' -u "$AUTH" -X POST "$BASE/loans/$LOAN/return" > "$TMP/r-$j" ) &
   done
   wait
   okc=0; conflict=0; other=0
@@ -43,7 +44,7 @@ for i in $(seq 1 $ROUNDS); do
   for j in 1 2 3 4 5; do books+=("$(new_book "Limit Race $i-$j" "LIM-$RUN-$i-$j")"); done
   rm -f "$TMP"/b-*
   for j in 1 2 3 4 5; do
-    ( curl -s -o /dev/null -w '%{http_code}' -X POST \
+    ( curl -s -o /dev/null -w '%{http_code}' -u "$AUTH" -X POST \
         "$BASE/loans/borrow?bookId=${books[$((j-1))]}&memberId=$MEM" > "$TMP/b-$j" ) &
   done
   wait
