@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.library.librarysystem.model.Author;
 import com.library.librarysystem.service.AuthorService;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+import com.library.librarysystem.config.SecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -34,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * of MockitoExtension.
  */
 @WebMvcTest(AuthorController.class)
+@Import(SecurityConfig.class)
 class AuthorControllerTest {
 
     @Autowired
@@ -52,6 +56,7 @@ class AuthorControllerTest {
     // ---------- POST /api/authors ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createAuthor_success() throws Exception {
         Author requestBody = new Author("Chinua Achebe", "Nigerian");
 
@@ -70,6 +75,7 @@ class AuthorControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createAuthor_blankName_returnsBadRequest() throws Exception {
         AuthorRequest requestBody = new AuthorRequest();
         requestBody.setName("");
@@ -137,6 +143,7 @@ class AuthorControllerTest {
     // ---------- PUT /api/authors/{id} ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void updateAuthor_success() throws Exception {
         UUID id = UUID.randomUUID();
         Author requestBody = new Author("Chinua Achebe", "Nigerian-British");
@@ -154,6 +161,7 @@ class AuthorControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void updateAuthor_notFound_returns404() throws Exception {
         UUID id = UUID.randomUUID();
         Author requestBody = new Author("Chinua Achebe", "Nigerian");
@@ -170,6 +178,7 @@ class AuthorControllerTest {
     // ---------- DELETE /api/authors/{id} ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void deleteAuthor_success() throws Exception {
         UUID id = UUID.randomUUID();
         // authorService.deleteAuthor(id) is void - default Mockito behavior
@@ -180,6 +189,7 @@ class AuthorControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void deleteAuthor_notFound_returns404() throws Exception {
         UUID id = UUID.randomUUID();
 

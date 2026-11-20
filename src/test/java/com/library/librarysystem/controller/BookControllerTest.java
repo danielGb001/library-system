@@ -1,5 +1,9 @@
 package com.library.librarysystem.controller;
 
+import com.library.librarysystem.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.library.librarysystem.model.Author;
 import com.library.librarysystem.model.Book;
@@ -36,6 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * since @WebMvcTest doesn't reliably provide one in this Boot version.
  */
 @WebMvcTest(BookController.class)
+@Import(SecurityConfig.class)
 class BookControllerTest {
 
     @Autowired
@@ -61,6 +66,7 @@ class BookControllerTest {
     // ---------- POST /api/books ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createBook_success() throws Exception {
         UUID authorId = UUID.randomUUID();
         Author author = new Author("Chinua Achebe", "Nigerian");
@@ -89,6 +95,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createBook_blankTitle_returnsBadRequestWithFieldError() throws Exception {
         UUID authorId = UUID.randomUUID();
 
@@ -101,6 +108,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createBook_missingAuthorId_returnsBadRequestWithFieldError() throws Exception {
         // authorId deliberately omitted -> deserializes as null -> @NotNull fires
         mockMvc.perform(post("/api/books")
@@ -111,6 +119,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createBook_totalCopiesBelowMinimum_returnsBadRequestWithFieldError() throws Exception {
         UUID authorId = UUID.randomUUID();
 
@@ -122,6 +131,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createBook_authorNotFound_returns404() throws Exception {
         UUID authorId = UUID.randomUUID();
 
@@ -195,6 +205,7 @@ class BookControllerTest {
     // ---------- PUT /api/books/{id} ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void updateBook_success() throws Exception {
         UUID bookId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
@@ -222,6 +233,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void updateBook_notFound_returns404() throws Exception {
         UUID bookId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
@@ -236,6 +248,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void updateBook_reducingBelowCopiesOnLoan_returnsConflict() throws Exception {
         // Mirrors the service-layer test: reducing totalCopies below the
         // number currently on loan is a business-rule conflict, not a
@@ -257,6 +270,7 @@ class BookControllerTest {
     // ---------- DELETE /api/books/{id} ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void deleteBook_success() throws Exception {
         UUID bookId = UUID.randomUUID();
 
@@ -265,6 +279,7 @@ class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void deleteBook_notFound_returns404() throws Exception {
         UUID bookId = UUID.randomUUID();
 

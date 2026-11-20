@@ -1,5 +1,9 @@
 package com.library.librarysystem.controller;
 
+import com.library.librarysystem.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+
 import com.library.librarysystem.model.Author;
 import com.library.librarysystem.model.Book;
 import com.library.librarysystem.model.Loan;
@@ -43,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * be serialized.
  */
 @WebMvcTest(LoanController.class)
+@Import(SecurityConfig.class)
 class LoanControllerTest {
 
     @Autowired
@@ -86,6 +91,7 @@ class LoanControllerTest {
     // ---------- POST /api/loans/borrow ----------
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_success_returns201() throws Exception {
         UUID loanId = UUID.randomUUID();
         when(loanService.borrowBook(bookId, memberId)).thenReturn(loanWithId(loanId));
@@ -101,6 +107,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_missingMemberIdParam_returns400() throws Exception {
         // Required @RequestParam absent: Spring rejects this before the
         // controller method runs, so the service is never called.
@@ -110,6 +117,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_malformedUuidParam_returns400() throws Exception {
         mockMvc.perform(post("/api/loans/borrow")
                         .param("bookId", "not-a-uuid")
@@ -118,6 +126,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_bookNotFound_returns404() throws Exception {
         when(loanService.borrowBook(bookId, memberId))
                 .thenThrow(new NoSuchElementException("Book not found with id: " + bookId));
@@ -130,6 +139,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_memberNotFound_returns404() throws Exception {
         when(loanService.borrowBook(bookId, memberId))
                 .thenThrow(new NoSuchElementException("Member not found with id: " + memberId));
@@ -142,6 +152,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_noAvailableCopies_returns409() throws Exception {
         when(loanService.borrowBook(bookId, memberId))
                 .thenThrow(new IllegalStateException("No available copies of \"Things Fall Apart\" to borrow"));
@@ -154,6 +165,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void borrowBook_memberAtMaxActiveLoans_returns409() throws Exception {
         when(loanService.borrowBook(bookId, memberId))
                 .thenThrow(new IllegalStateException("Member has reached the maximum of 3 active loans"));
@@ -168,6 +180,7 @@ class LoanControllerTest {
     // ---------- POST /api/loans/{loanId}/return ----------
 
     @Test
+    @WithMockUser(roles = "USER")
     void returnBook_success_returns200WithReturnDate() throws Exception {
         UUID loanId = UUID.randomUUID();
         Loan returned = loanWithId(loanId);
@@ -182,6 +195,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void returnBook_alreadyReturned_returns409() throws Exception {
         UUID loanId = UUID.randomUUID();
 
@@ -194,6 +208,7 @@ class LoanControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "USER")
     void returnBook_loanNotFound_returns404() throws Exception {
         UUID loanId = UUID.randomUUID();
 

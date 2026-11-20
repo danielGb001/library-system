@@ -1,5 +1,9 @@
 package com.library.librarysystem.exception;
 
+import com.library.librarysystem.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+
 import com.library.librarysystem.controller.AuthorController;
 import com.library.librarysystem.controller.BookController;
 import com.library.librarysystem.controller.LoanController;
@@ -30,6 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The handler is shared by every controller, so this class loads all four and
  * mocks their services, then triggers each failure through a real HTTP call.
  */
+@Import(SecurityConfig.class)
+@WithMockUser(roles = "ADMIN")
 @WebMvcTest(controllers = {
         AuthorController.class, BookController.class,
         MemberController.class, LoanController.class})

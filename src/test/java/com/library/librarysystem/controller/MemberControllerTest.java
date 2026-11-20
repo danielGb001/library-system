@@ -1,5 +1,9 @@
 package com.library.librarysystem.controller;
 
+import com.library.librarysystem.config.SecurityConfig;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.library.librarysystem.model.Member;
 import com.library.librarysystem.service.MemberService;
@@ -31,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @MockitoBean, and a plain `new ObjectMapper()`.
  */
 @WebMvcTest(MemberController.class)
+@Import(SecurityConfig.class)
 class MemberControllerTest {
 
     @Autowired
@@ -51,6 +56,7 @@ class MemberControllerTest {
     // ---------- POST /api/members ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createMember_success() throws Exception {
         Member saved = new Member("Ada Lovelace", "ada@example.com");
         saved.setId(UUID.randomUUID());
@@ -66,6 +72,7 @@ class MemberControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createMember_blankFullName_returnsBadRequestWithFieldError() throws Exception {
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,6 +82,7 @@ class MemberControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createMember_blankEmail_returnsBadRequestWithFieldError() throws Exception {
         // Blank satisfies @Email (empty values are considered valid by the
         // Bean Validation spec), so @NotBlank is the one that fires here.
@@ -86,6 +94,7 @@ class MemberControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void createMember_malformedEmail_returnsBadRequestWithFieldError() throws Exception {
         // Non-blank but not a valid email shape - @NotBlank passes,
         // @Email is the one that fires here.
@@ -145,6 +154,7 @@ class MemberControllerTest {
     // ---------- DELETE /api/members/{id} ----------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void deleteMember_success() throws Exception {
         UUID id = UUID.randomUUID();
 
@@ -153,6 +163,7 @@ class MemberControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void deleteMember_notFound_returns404() throws Exception {
         UUID id = UUID.randomUUID();
 
