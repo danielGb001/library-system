@@ -75,10 +75,14 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    ```bash
    mkdir -p config
    ```
-   Then put this in `config/application.properties`:
+   Then put this in `config/application.properties` (the last four lines are the logins for the two API roles; choose your own values, because the app will not start without them):
    ```properties
    spring.datasource.username=YOUR_USERNAME
    spring.datasource.password=YOUR_PASSWORD
+   ADMIN_USERNAME=YOUR_ADMIN_NAME
+   ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
+   USER_USERNAME=YOUR_USER_NAME
+   USER_PASSWORD=YOUR_USER_PASSWORD
    ```
 
 4. Run the application:
@@ -135,7 +139,7 @@ Opening the root URL (`http://localhost:8080/`) redirects to the Swagger page. A
 ## Example: Borrowing a Book
 
 ```bash
-curl -X POST "http://localhost:8080/api/loans/borrow?bookId=<book-uuid>&memberId=<member-uuid>"
+curl -u "YOUR_USER_NAME:YOUR_USER_PASSWORD" -X POST "http://localhost:8080/api/loans/borrow?bookId=<book-uuid>&memberId=<member-uuid>"
 ```
 
 **Response (201 Created):**
@@ -169,9 +173,33 @@ Errors return consistent JSON with an appropriate HTTP status:
 | `400` | Invalid request data (validation failure, malformed JSON body, invalid or missing parameter) |
 | `409` | Request conflicts with current state or existing data (e.g. double-returning a loan, a duplicate email or ISBN, deleting a record that is still referenced) |
 
+## Security
+
+Write endpoints require a login (HTTP Basic authentication). Reading stays public.
+
+| Who | What they can do |
+|---|---|
+| Anonymous (no login) | Every `GET` endpoint, Swagger UI and the API docs, the root redirect, `/actuator/health` |
+| `USER` | Everything anonymous can, plus borrow and return books (`POST /api/loans/borrow`, `POST /api/loans/{id}/return`) |
+| `ADMIN` | Everything, including creating, updating and deleting authors, books and members |
+
+A request with no login (or a wrong password) gets **401**. A valid login without the required role gets **403**.
+
+```bash
+curl -u "YOUR_ADMIN_NAME:YOUR_ADMIN_PASSWORD" -X POST http://localhost:8080/api/authors \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Chinua Achebe","nationality":"Nigerian"}'
+```
+
+How it works:
+- The two accounts come from four environment variables or properties (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `USER_USERNAME`, `USER_PASSWORD`). Nothing secret is stored in the repository, and the application refuses to start if one is missing.
+- Passwords are hashed with BCrypt in memory when the application starts.
+- The API is stateless: there are no sessions or cookies, and the client sends its credentials with every request. For that reason CSRF protection is switched off.
+- The rules live in one `SecurityFilterChain` (`config/SecurityConfig.java`) and are covered by `SecurityRulesTest`.
+
 ## Testing
 
-The project has **86 automated tests**: 85 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
+The project has **98 automated tests**: 97 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
 
 ### Service layer — 32 unit tests
 
@@ -183,7 +211,7 @@ Each service is tested in isolation: repositories are mocked with Mockito (`@Moc
 | `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 9 | Borrowing (availability checks, max active loans, losing the race for the last copy), returning (double-return prevention), not-found handling |
 
-### Controller layer — 53 web-layer tests
+### Controller layer — 65 web-layer tests
 
 These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
 
@@ -195,6 +223,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 | `LoanControllerTest` | 14 | Borrow/return flows, 409 on no copies / max loans / double-return, missing or malformed query parameters |
 | `RootControllerTest` | 1 | The root URL (`/`) redirects to the Swagger UI |
 | `GlobalExceptionHandlerTest` | 7 | Error responses shared by every controller: 409 on duplicate email/ISBN and on deleting a record that is still referenced, 400 on malformed JSON, an invalid UUID or a missing parameter, and the validation-error shape |
+| `SecurityRulesTest` | 12 | Access rules from `SecurityConfig`: anonymous reads allowed, anonymous writes get 401, a `USER` gets 403 on admin-only actions, `USER` and `ADMIN` may borrow and return |
 
 ### Running the tests
 
@@ -202,7 +231,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created) for the full suite to pass. The other 85 tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values from Setup step 3 set) for the full suite to pass. The other 97 tests need no database.
 
 ## Concurrency
 
