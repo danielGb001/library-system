@@ -185,6 +185,8 @@ Write endpoints require a login (HTTP Basic authentication). Reading stays publi
 
 A request with no login (or a wrong password) gets **401**. A valid login without the required role gets **403**.
 
+In Swagger UI, click the **Authorize** button, enter a username and password, and every request you send with **Execute** includes that login. Live demo login (a `USER` account, so it can borrow and return books but not create or delete anything): username `user_demo`, password `demo+123`.
+
 ```bash
 curl -u "YOUR_ADMIN_NAME:YOUR_ADMIN_PASSWORD" -X POST http://localhost:8080/api/authors \
   -H "Content-Type: application/json" \
