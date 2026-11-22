@@ -109,12 +109,16 @@ Opening the root URL (`http://localhost:8080/`) redirects to the Swagger page. A
 
 ## API Endpoints
 
+Reading is public. Borrowing and returning books needs a login (any role); creating, updating and deleting authors, books and members needs the `ADMIN` role. See [Security](#security).
+
 ### Authors
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/authors` | Create an author |
 | `GET` | `/api/authors/{id}` | Get an author by ID |
 | `GET` | `/api/authors` | List all authors |
+| `PUT` | `/api/authors/{id}` | Update an author |
+| `DELETE` | `/api/authors/{id}` | Delete an author |
 
 ### Books
 | Method | Endpoint | Description |
@@ -122,6 +126,8 @@ Opening the root URL (`http://localhost:8080/`) redirects to the Swagger page. A
 | `POST` | `/api/books` | Create a book (requires `authorId` in body) |
 | `GET` | `/api/books/{id}` | Get a book by ID |
 | `GET` | `/api/books` | List books, one page at a time, with optional title search (see below) |
+| `PUT` | `/api/books/{id}` | Update a book |
+| `DELETE` | `/api/books/{id}` | Delete a book |
 
 `GET /api/books` returns one page at a time. Optional query parameters: `title` (only books whose title contains the text, ignoring case), `page` (starting at 0, default 0) and `size` (1 to 100, default 20). Books are sorted by title. For example, `GET /api/books?title=fall&page=0&size=10` returns:
 
@@ -143,6 +149,7 @@ An invalid `page` or `size` gets **400**.
 | `POST` | `/api/members` | Register a member |
 | `GET` | `/api/members/{id}` | Get a member by ID |
 | `GET` | `/api/members` | List all members |
+| `DELETE` | `/api/members/{id}` | Delete a member |
 
 ### Loans
 | Method | Endpoint | Description |
@@ -150,6 +157,8 @@ An invalid `page` or `size` gets **400**.
 | `POST` | `/api/loans/borrow?bookId={id}&memberId={id}` | Borrow a book |
 | `POST` | `/api/loans/{loanId}/return` | Return a borrowed book |
 | `GET` | `/api/loans` | List all loans |
+| `GET` | `/api/loans/{id}` | Get a loan by ID |
+| `GET` | `/api/loans/member/{memberId}` | List the active (not yet returned) loans of one member |
 
 ## Example: Borrowing a Book
 
