@@ -121,7 +121,21 @@ Opening the root URL (`http://localhost:8080/`) redirects to the Swagger page. A
 |---|---|---|
 | `POST` | `/api/books` | Create a book (requires `authorId` in body) |
 | `GET` | `/api/books/{id}` | Get a book by ID |
-| `GET` | `/api/books` | List all books |
+| `GET` | `/api/books` | List books, one page at a time, with optional title search (see below) |
+
+`GET /api/books` returns one page at a time. Optional query parameters: `title` (only books whose title contains the text, ignoring case), `page` (starting at 0, default 0) and `size` (1 to 100, default 20). Books are sorted by title. For example, `GET /api/books?title=fall&page=0&size=10` returns:
+
+```json
+{
+  "content": [ { "id": "...", "title": "Things Fall Apart", "...": "..." } ],
+  "page": 0,
+  "size": 10,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+An invalid `page` or `size` gets **400**.
 
 ### Members
 | Method | Endpoint | Description |
@@ -221,26 +235,26 @@ How it works:
 
 ## Testing
 
-The project has **105 automated tests**: 104 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
+The project has **112 automated tests**: 111 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
 
-### Service layer — 32 unit tests
+### Service layer — 34 unit tests
 
 Each service is tested in isolation: repositories are mocked with Mockito (`@Mock` / `@InjectMocks`), so these tests verify business logic without touching a database.
 
 | Test Class | Tests | Covers |
 |---|---|---|
 | `AuthorServiceImplTest` | 12 | CRUD operations, blank-field validation, not-found handling |
-| `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
+| `BookServiceImplTest` | 13 | Book creation/updates, paged title search, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 9 | Borrowing (availability checks, max active loans, losing the race for the last copy), returning (double-return prevention), not-found handling |
 
-### Controller layer — 72 web-layer tests
+### Controller layer — 77 web-layer tests
 
 These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
 
 | Test Class | Tests | Covers |
 |---|---|---|
 | `AuthorControllerTest` | 9 | CRUD endpoints, 404 and 400 error mapping |
-| `BookControllerTest` | 13 | CRUD endpoints, bean-validation failures (`fieldErrors` responses), 409 on reducing copies below those on loan |
+| `BookControllerTest` | 18 | CRUD endpoints, paging and title search (with `page`/`size` validation), bean-validation failures (`fieldErrors` responses), 409 on reducing copies below those on loan |
 | `MemberControllerTest` | 9 | Create/get/list/delete, blank-name and blank/malformed-email validation |
 | `LoanControllerTest` | 14 | Borrow/return flows, 409 on no copies / max loans / double-return, missing or malformed query parameters |
 | `RootControllerTest` | 1 | The root URL (`/`) redirects to the Swagger UI |
@@ -254,7 +268,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values and `JWT_SECRET` from Setup step 3 set) for the full suite to pass. The other 104 tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values and `JWT_SECRET` from Setup step 3 set) for the full suite to pass. The other 111 tests need no database.
 
 ## Concurrency
 

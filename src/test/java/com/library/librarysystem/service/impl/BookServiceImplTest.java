@@ -11,6 +11,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -123,6 +130,30 @@ class BookServiceImplTest {
 
         assertEquals(1, result.size());
         assertEquals(existingBook, result.get(0));
+    }
+
+    // --- searchBooks ---
+
+    @Test
+    void searchBooks_withBlankTitle_returnsPageOfAllBooks() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(bookRepository.findAll(pageable)).thenReturn(new PageImpl<Book>(List.of(existingBook), pageable, 1));
+
+        Page<Book> result = bookService.searchBooks("   ", pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(bookRepository, never()).findByTitleContainingIgnoreCase(any(), any());
+    }
+
+    @Test
+    void searchBooks_withTitle_searchesByTrimmedTitle() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(bookRepository.findByTitleContainingIgnoreCase("fall", pageable))
+                .thenReturn(new PageImpl<Book>(List.of(existingBook), pageable, 1));
+
+        Page<Book> result = bookService.searchBooks("  fall ", pageable);
+
+        assertEquals(existingBook, result.getContent().get(0));
     }
 
     // --- updateBook ---

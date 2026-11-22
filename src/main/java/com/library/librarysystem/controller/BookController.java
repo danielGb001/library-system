@@ -3,16 +3,20 @@ package com.library.librarysystem.controller;
 import jakarta.validation.Valid;
 import com.library.librarysystem.model.Book;
 import com.library.librarysystem.service.BookService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/books")
 public class BookController {
+
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final BookService bookService;
 
@@ -36,12 +40,21 @@ public class BookController {
         return ResponseEntity.ok(BookResponse.from(bookService.getBookById(id)));
     }
 
+    // One page of books, optionally filtered by a title search: GET /api/books?title=ring&page=0&size=20
     @GetMapping
-    public ResponseEntity<List<BookResponse>> getAllBooks() {
-        List<BookResponse> books = bookService.getAllBooks().stream()
-                .map(BookResponse::from)
-                .toList();
-        return ResponseEntity.ok(books);
+    public ResponseEntity<PageResponse<BookResponse>> getBooks(
+            @RequestParam(required = false) String title,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("page must be 0 or greater");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        // Sorted by title, then id, so the order (and therefore the pages) stay stable.
+        Page<Book> books = bookService.searchBooks(title, PageRequest.of(page, size, Sort.by("title", "id")));
+        return ResponseEntity.ok(PageResponse.from(books, BookResponse::from));
     }
 
     @PutMapping("/{id}")

@@ -16,6 +16,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -185,7 +192,7 @@ class BookControllerTest {
     // ---------- GET /api/books ----------
 
     @Test
-    void getAllBooks_success() throws Exception {
+    void getBooks_returnsPageWithPagingInfo() throws Exception {
         Author author = new Author("Chinua Achebe", "Nigerian");
         author.setId(UUID.randomUUID());
 
@@ -194,13 +201,59 @@ class BookControllerTest {
         Book b2 = Book.builder().author(author).title("No Longer at Ease").isbn("222").totalCopies(3).availableCopies(3).build();
         b2.setId(UUID.randomUUID());
 
-        when(bookService.getAllBooks()).thenReturn(List.of(b1, b2));
+        when(bookService.searchBooks(any(), any()))
+                .thenReturn(new PageImpl<Book>(List.of(b1, b2), PageRequest.of(0, 20), 2));
 
         mockMvc.perform(get("/api/books"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].title").value("Things Fall Apart"))
-                .andExpect(jsonPath("$[1].title").value("No Longer at Ease"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].title").value("Things Fall Apart"))
+                .andExpect(jsonPath("$.content[1].title").value("No Longer at Ease"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void getBooks_passesTitleAndPagingToService() throws Exception {
+        when(bookService.searchBooks(any(), any())).thenReturn(new PageImpl<Book>(List.of()));
+
+        mockMvc.perform(get("/api/books").param("title", "fall").param("page", "2").param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(bookService).searchBooks(eq("fall"), captor.capture());
+        assertEquals(2, captor.getValue().getPageNumber());
+        assertEquals(5, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void getBooks_sizeTooLarge_returns400() throws Exception {
+        mockMvc.perform(get("/api/books").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("size must be between 1 and 100"));
+    }
+
+    @Test
+    void getBooks_sizeZero_returns400() throws Exception {
+        mockMvc.perform(get("/api/books").param("size", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("size must be between 1 and 100"));
+    }
+
+    @Test
+    void getBooks_negativePage_returns400() throws Exception {
+        mockMvc.perform(get("/api/books").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("page must be 0 or greater"));
+    }
+
+    @Test
+    void getBooks_nonNumericPage_returns400() throws Exception {
+        mockMvc.perform(get("/api/books").param("page", "abc"))
+                .andExpect(status().isBadRequest());
     }
 
     // ---------- PUT /api/books/{id} ----------

@@ -5,6 +5,8 @@ import com.library.librarysystem.model.Book;
 import com.library.librarysystem.repository.AuthorRepository;
 import com.library.librarysystem.repository.BookRepository;
 import com.library.librarysystem.service.BookService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -51,6 +53,14 @@ public class BookServiceImpl implements BookService {
     @Override
     public List<Book> getAllBooks() {
         return bookRepository.findAll();
+    }
+
+    @Override
+    public Page<Book> searchBooks(String title, Pageable pageable) {
+        if (title == null || title.isBlank()) {
+            return bookRepository.findAll(pageable);
+        }
+        return bookRepository.findByTitleContainingIgnoreCase(title.trim(), pageable);
     }
 
     @Override

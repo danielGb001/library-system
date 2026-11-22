@@ -1,6 +1,8 @@
 package com.library.librarysystem.repository;
 
 import com.library.librarysystem.model.Book;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +25,7 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
     @Query("update Book b set b.availableCopies = b.availableCopies + 1 "
             + "where b.id = :id and b.availableCopies < b.totalCopies")
     int incrementAvailableCopies(@Param("id") UUID id);
+
+    // Case-insensitive "title contains" search, one page at a time (Spring Data writes the SQL from the method name).
+    Page<Book> findByTitleContainingIgnoreCase(String title, Pageable pageable);
 }
