@@ -160,6 +160,13 @@ An invalid `page` or `size` gets **400**.
 | `GET` | `/api/loans/{id}` | Get a loan by ID |
 | `GET` | `/api/loans/member/{memberId}` | List the active (not yet returned) loans of one member |
 
+### Users
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/users` | Create a login account (`ADMIN` only) |
+
+The body is `{"username": "...", "password": "...", "role": "USER"}`: the username is 3 to 50 characters and must not exist yet (**409** if it does), the password is 8 to 72 characters, and the role is `ADMIN` or `USER` (otherwise **400**). The response shows the new account's `id`, `username` and `role`, never the password. The new account can then log in through `POST /api/auth/login`.
+
 ## Example: Borrowing a Book
 
 ```bash
@@ -239,14 +246,15 @@ A wrong username or password gets **401** with the same message in both cases, s
 How it works:
 - The two accounts come from four environment variables or properties (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `USER_USERNAME`, `USER_PASSWORD`) and are copied into the `app_user` table when the application starts. Tokens are signed with a fifth value, `JWT_SECRET` (at least 32 characters). Nothing secret is stored in the repository, and the application refuses to start if one of these is missing.
 - Passwords are stored only as BCrypt hashes, in the `app_user` table (created by the `V2__create_users.sql` migration).
+- Further accounts are created by an admin with `POST /api/users` (see Users above). The two accounts from the environment variables are refreshed from them at every startup.
 - The API is stateless: there are no sessions or cookies, and the client sends its credentials or token with every request. For that reason CSRF protection is switched off.
 - The rules live in one `SecurityFilterChain` (`config/SecurityConfig.java`) and are covered by `SecurityRulesTest` and `AuthControllerTest`.
 
 ## Testing
 
-The project has **112 automated tests**: 111 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
+The project has **122 automated tests**: 121 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
 
-### Service layer — 34 unit tests
+### Service layer — 37 unit tests
 
 Each service is tested in isolation: repositories are mocked with Mockito (`@Mock` / `@InjectMocks`), so these tests verify business logic without touching a database.
 
@@ -255,8 +263,9 @@ Each service is tested in isolation: repositories are mocked with Mockito (`@Moc
 | `AuthorServiceImplTest` | 12 | CRUD operations, blank-field validation, not-found handling |
 | `BookServiceImplTest` | 13 | Book creation/updates, paged title search, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 9 | Borrowing (availability checks, max active loans, losing the race for the last copy), returning (double-return prevention), not-found handling |
+| `UserServiceImplTest` | 3 | Creating accounts: only the password hash is stored, unknown roles and existing usernames are rejected |
 
-### Controller layer — 77 web-layer tests
+### Controller layer — 84 web-layer tests
 
 These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
 
@@ -270,6 +279,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 | `GlobalExceptionHandlerTest` | 7 | Error responses shared by every controller: 409 on duplicate email/ISBN and on deleting a record that is still referenced, 400 on malformed JSON, an invalid UUID or a missing parameter, and the validation-error shape |
 | `SecurityRulesTest` | 12 | Access rules from `SecurityConfig`: anonymous reads allowed, anonymous writes get 401, a `USER` gets 403 on admin-only actions, `USER` and `ADMIN` may borrow and return |
 | `AuthControllerTest` | 7 | Login endpoint (correct password, wrong password, unknown user, blank fields) and that a token is accepted with its role enforced |
+| `UserControllerTest` | 7 | `POST /api/users`: `ADMIN` only (403 for `USER`, 401 anonymous), 409 on duplicate username, 400 on bad role or password, no password in the response |
 
 ### Running the tests
 
@@ -277,7 +287,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values and `JWT_SECRET` from Setup step 3 set) for the full suite to pass. The other 111 tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values and `JWT_SECRET` from Setup step 3 set) for the full suite to pass. The other 121 tests need no database.
 
 ## Concurrency
 
