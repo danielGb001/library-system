@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/danielGb001/library-system/actions/workflows/ci.yml/badge.svg)](https://github.com/danielGb001/library-system/actions/workflows/ci.yml)
 
-**Live demo:** [Swagger UI on Render](https://library-system-blpx.onrender.com/swagger-ui.html) (free-tier hosting: the first request after a quiet period can take a minute or two, and the free demo database is occasionally powered off by its host, so the demo may be briefly unavailable).
+**Live demo:** [Swagger UI on Render](https://library-system-blpx.onrender.com/swagger-ui.html) (free-tier hosting: the first request after a quiet period can take a minute or two, and the free demo database is occasionally powered off by its host, so the demo may be briefly unavailable). To try the write endpoints, click **Authorize** in Swagger UI and use the demo login listed in the [Security](#security) section.
 
 A RESTful library management API built with **Spring Boot**, demonstrating a layered architecture (Controller → Service → Repository → Entity), relational data modeling, business-rule enforcement, and centralized error handling.
 
