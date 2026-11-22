@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = {
         AuthorController.class, BookController.class,
         MemberController.class, LoanController.class})
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, JwtConfig.class})
 class SecurityRulesTest {
 
     private static final String ID = "11111111-1111-1111-1111-111111111111";

@@ -101,6 +101,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    // ---------- Failed login ----------
+
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(
+            org.springframework.security.authentication.BadCredentialsException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
     // ---------- Shared response builder ----------
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {

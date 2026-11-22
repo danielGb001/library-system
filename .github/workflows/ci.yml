@@ -59,3 +59,4 @@ jobs:
           ADMIN_PASSWORD: ci-admin-password
           USER_USERNAME: ci-user
           USER_PASSWORD: ci-user-password
+          JWT_SECRET: ci-test-jwt-secret-0123456789-abcdefghijklmnop

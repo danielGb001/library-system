@@ -1,6 +1,7 @@
 package com.library.librarysystem.controller;
 
 import com.library.librarysystem.config.SecurityConfig;
+import com.library.librarysystem.config.JwtConfig;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 
@@ -47,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * be serialized.
  */
 @WebMvcTest(LoanController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, JwtConfig.class})
 class LoanControllerTest {
 
     @Autowired

@@ -75,7 +75,7 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    ```bash
    mkdir -p config
    ```
-   Then put this in `config/application.properties` (the last four lines are the logins for the two API roles; choose your own values, because the app will not start without them):
+   Then put this in `config/application.properties` (the last five lines are the four logins for the two API roles plus a key that signs login tokens; choose your own values, because the app will not start without them; `JWT_SECRET` must be at least 32 characters, for example the output of `openssl rand -base64 48`):
    ```properties
    spring.datasource.username=YOUR_USERNAME
    spring.datasource.password=YOUR_PASSWORD
@@ -83,6 +83,7 @@ All entity IDs are **UUIDs**, generated and mapped explicitly (`@JdbcTypeCode(Sq
    ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
    USER_USERNAME=YOUR_USER_NAME
    USER_PASSWORD=YOUR_USER_PASSWORD
+   JWT_SECRET=YOUR_LONG_RANDOM_SECRET
    ```
 
 4. Run the application:
@@ -175,7 +176,7 @@ Errors return consistent JSON with an appropriate HTTP status:
 
 ## Security
 
-Write endpoints require a login (HTTP Basic authentication). Reading stays public.
+Write endpoints require a login: either HTTP Basic (username and password with every request) or a Bearer token from `POST /api/auth/login`. Reading stays public.
 
 | Who | What they can do |
 |---|---|
@@ -193,15 +194,34 @@ curl -u "YOUR_ADMIN_NAME:YOUR_ADMIN_PASSWORD" -X POST http://localhost:8080/api/
   -d '{"name":"Chinua Achebe","nationality":"Nigerian"}'
 ```
 
+To log in once and use a token instead of sending the password with every request, call `POST /api/auth/login` (the token is valid for 1 hour):
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"YOUR_ADMIN_NAME","password":"YOUR_ADMIN_PASSWORD"}'
+```
+
+The response contains `accessToken`. Send it as a Bearer token:
+
+```bash
+curl -X POST http://localhost:8080/api/authors \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Chinua Achebe","nationality":"Nigerian"}'
+```
+
+A wrong username or password gets **401** with the same message in both cases, so the response does not reveal which usernames exist.
+
 How it works:
-- The two accounts come from four environment variables or properties (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `USER_USERNAME`, `USER_PASSWORD`). Nothing secret is stored in the repository, and the application refuses to start if one is missing.
-- Passwords are hashed with BCrypt in memory when the application starts.
-- The API is stateless: there are no sessions or cookies, and the client sends its credentials with every request. For that reason CSRF protection is switched off.
-- The rules live in one `SecurityFilterChain` (`config/SecurityConfig.java`) and are covered by `SecurityRulesTest`.
+- The two accounts come from four environment variables or properties (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `USER_USERNAME`, `USER_PASSWORD`) and are copied into the `app_user` table when the application starts. Tokens are signed with a fifth value, `JWT_SECRET` (at least 32 characters). Nothing secret is stored in the repository, and the application refuses to start if one of these is missing.
+- Passwords are stored only as BCrypt hashes, in the `app_user` table (created by the `V2__create_users.sql` migration).
+- The API is stateless: there are no sessions or cookies, and the client sends its credentials or token with every request. For that reason CSRF protection is switched off.
+- The rules live in one `SecurityFilterChain` (`config/SecurityConfig.java`) and are covered by `SecurityRulesTest` and `AuthControllerTest`.
 
 ## Testing
 
-The project has **98 automated tests**: 97 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
+The project has **105 automated tests**: 104 across the two layers below, plus a context-load test that starts the whole application against a real MySQL. They are written with JUnit 5 and Mockito.
 
 ### Service layer — 32 unit tests
 
@@ -213,7 +233,7 @@ Each service is tested in isolation: repositories are mocked with Mockito (`@Moc
 | `BookServiceImplTest` | 11 | Book creation/updates, available-copies recalculation, not-found and validation errors |
 | `LoanServiceImplTest` | 9 | Borrowing (availability checks, max active loans, losing the race for the last copy), returning (double-return prevention), not-found handling |
 
-### Controller layer — 65 web-layer tests
+### Controller layer — 72 web-layer tests
 
 These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mapping, status codes, JSON shape, request validation, and `GlobalExceptionHandler`'s error responses) with the service layer mocked via `@MockitoBean`.
 
@@ -226,6 +246,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 | `RootControllerTest` | 1 | The root URL (`/`) redirects to the Swagger UI |
 | `GlobalExceptionHandlerTest` | 7 | Error responses shared by every controller: 409 on duplicate email/ISBN and on deleting a record that is still referenced, 400 on malformed JSON, an invalid UUID or a missing parameter, and the validation-error shape |
 | `SecurityRulesTest` | 12 | Access rules from `SecurityConfig`: anonymous reads allowed, anonymous writes get 401, a `USER` gets 403 on admin-only actions, `USER` and `ADMIN` may borrow and return |
+| `AuthControllerTest` | 7 | Login endpoint (correct password, wrong password, unknown user, blank fields) and that a token is accepted with its role enforced |
 
 ### Running the tests
 
@@ -233,7 +254,7 @@ These use `@WebMvcTest` and `MockMvc` to exercise the real HTTP layer (URL mappi
 ./mvnw test
 ```
 
-> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values from Setup step 3 set) for the full suite to pass. The other 97 tests need no database.
+> **Note:** the default `LibrarySystemApplicationTests` context-load test starts the full application and connects to the MySQL database configured in `application.properties` (plus your `config/application.properties` override), so MySQL must be running (with the `library_system` database created and the four login values and `JWT_SECRET` from Setup step 3 set) for the full suite to pass. The other 104 tests need no database.
 
 ## Concurrency
 

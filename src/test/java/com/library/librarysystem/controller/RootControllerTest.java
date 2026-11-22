@@ -1,6 +1,7 @@
 package com.library.librarysystem.controller;
 
 import com.library.librarysystem.config.SecurityConfig;
+import com.library.librarysystem.config.JwtConfig;
 import org.springframework.context.annotation.Import;
 
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(RootController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, JwtConfig.class})
 class RootControllerTest {
 
     @Autowired
